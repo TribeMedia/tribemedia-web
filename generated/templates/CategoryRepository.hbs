@@ -1,0 +1,32 @@
+import { gql } from '@apollo/client';
+import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
+import * as Types from './graphql';
+
+export class {{typeName}}Repository {
+  private client: ApolloClient<NormalizedCacheObject>;
+
+  constructor(client: ApolloClient<NormalizedCacheObject>) {
+    this.client = client;
+  }
+
+{{#each fields}}
+  // OPERATION: {{operationName}}
+  async {{operationName}}({{#if args}}{{#each args}}{{name}}: {{type}}{{#unless @last}}, {{/unless}}{{/each}}{{/if}}): Promise<Types.{{../typeName}}['{{operationName}}']> {
+    const {{upperCase operationName}} = gql`
+      query {{operationName}}{{#if args}}({{#each args}}${{name}}: {{rawType}}{{#unless @last}}, {{/unless}}{{/each}}){{/if}} {
+        {{operationName}}{{#if args}}({{#each args}}{{name}}: ${{name}}{{#unless @last}}, {{/unless}}{{/each}}){{/if}} {
+          # fields would be added here
+        }
+      }
+    `;
+
+    const { data } = await this.client.query({
+      {{#if args}}variables: { {{#each args}}{{name}}{{#if (eq rawType "DateTime")}}: {{name}}.toISOString(){{else if (eq rawType "JSON")}}: JSON.stringify({{name}}){{else}}: {{name}}{{/if}}{{#unless @last}}, {{/unless}}{{/each}} },{{/if}}
+      query: {{upperCase operationName}},
+    });
+
+    return data.{{operationName}};
+  }
+
+{{/each}}
+}

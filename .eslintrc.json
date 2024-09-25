@@ -1,0 +1,30 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "root": true,
+  "parserOptions": {
+    "project": "./tsconfig.json",
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unused-vars": "off"
+  },
+  "ignorePatterns": [
+    "src/types/graphql.ts", 
+    "src/scripts/fileGenerator.js", 
+    "src/scripts/gen-handlebars.js", 
+    "src/scripts/typeGenerator.js", 
+    "src/scripts/schemaParser.js", 
+    "src/types/inputSchemas.ts",
+    "src/types/nodeSchemas.ts",
+    "src/types/inputTypes.ts",
+    "src/types/nodeTypes.ts",
+    "src/lib/repositories/*"
+  ]
+}

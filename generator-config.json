@@ -1,0 +1,5 @@
+{
+  "apolloClientPath": "@/lib/apolloClient",
+  "includeDirectories": ["src/graphql", "src/components"],
+  "excludeDirectories": ["src/graphql/generated"]
+}

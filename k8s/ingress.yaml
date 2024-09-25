@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+    name: prometheus-ingress
+    namespace: prometheus
+    annotations:
+        kubernetes.io/ingress.class: "traefik"
+        traefik.ingress.kubernetes.io/redirect-entry-point: "https"
+        traefik.ingress.kubernetes.io/ssl-redirect: "true"
+        traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
+        traefik.ingress.kubernetes.io/router.tls: "true"
+        "traefik.ingress.kubernetes.io/request-timeout": "3m"
+spec:
+    rules:
+        - host: www.${DNS_NAME}
+          http:
+              paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                        service:
+                            name: prometheus-web-service
+                            port:
+                                number: 3000
+        - host: ${DNS_NAME}
+          http:
+              paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                        service:
+                            name: prometheus-web-service
+                            port:
+                                number: 3000
+    tls:
+        - hosts:
+            - ${DNS_NAME}
+            - www.${DNS_NAME}
+          secretName: prometheus-tls

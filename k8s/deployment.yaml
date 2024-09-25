@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: prometheus-web
+    namespace: prometheus
+    labels:
+        app: prometheus-web
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: prometheus-web
+    template:
+        metadata:
+            labels:
+                app: prometheus-web
+        spec:
+            containers:
+                - name: prometheus-web
+                  image: ${DOCKER_IMAGE}
+                  ports:
+                      - containerPort: 3000
+                  resources:
+                    limits:
+                      cpu: "500m"
+                      memory: "512Mi"
+                    requests:
+                      cpu: "250m"
+                      memory: "256Mi"
+                  env:
+                      - name: DIFY_API_KEY
+                        value: "${DIFY_API_KEY}"
+                      - name: DIFY_API_URL
+                        value: "${DIFY_API_URL}"
+                     

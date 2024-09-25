@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+    name: prometheus-web-service
+    namespace: prometheus
+    labels:
+        app: prometheus-web
+spec:
+    selector:
+        app: prometheus-web
+    ports:
+        - protocol: TCP
+          port: 8223
+          targetPort: 8223
+    type: ClusterIP

@@ -1,0 +1,101 @@
+name: Build, Push, and Deploy to AKS
+
+on:
+    push:
+        branches:
+            - dev
+
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+        
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v3
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to Azure Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ secrets.ACR_LOGIN_SERVER }}
+                  username: ${{ secrets.ACR_USERNAME }}
+                  password: ${{ secrets.ACR_PASSWORD }}
+
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  push: true
+                  tags: ${{ secrets.ACR_LOGIN_SERVER }}/${{ vars.IMAGE_NAME }}:${{ vars.IMAGE_TAG }}.${{ vars.BUILD }}
+
+            - name: Set up kubectl
+              uses: azure/setup-kubectl@v3
+              with:
+                  version: 'latest'
+
+            - name: Azure Login
+              uses: azure/login@v1
+              with:
+                  creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+            - name: Set AKS context
+              uses: azure/aks-set-context@v2
+              with:
+                  resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
+                  cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+            - name: Create ArgoCD project
+              run: |
+                  kubectl apply -f argocd-app.yaml
+
+            - name: Replace environment variables in manifests
+              run: |
+                  export DOCKER_IMAGE=${{ secrets.ACR_LOGIN_SERVER }}/${{ vars.IMAGE_NAME }}:${{ vars.IMAGE_TAG }}.${{ vars.BUILD }}
+                  export DIFY_API_URL=${{ vars.DIFY_API_URL }}
+                  export DIFY_API_KEY=${{ vars.DIFY_API_KEY }}
+                  
+                  cd k8s && chmod +x process.sh && ./process.sh && cd ..
+
+            - name: Set up SSH
+              run: |
+                  mkdir -p ~/.ssh
+                  echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+                  chmod 600 ~/.ssh/id_rsa
+                  ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+            - name: Commit processed files to separate branch
+              run: |
+                  git config --global user.email "github-actions@github.com"
+                  git config --global user.name "GitHub Actions"
+                  git checkout -b processed-files-${{ vars.BUILD }}
+                  git add .
+                  git commit -a -m "Update manifests with environment variables"
+                  git remote set-url origin git@github.com:${{ github.repository }}.git
+                  git push -u origin processed-files-${{ vars.BUILD }} --force
+
+            - name: Port forward ArgoCD server
+              run: |
+                  kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+                  sleep 5
+
+            - name: Install ArgoCD CLI
+              run: |
+                  curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+                  chmod +x argocd-linux-amd64
+                  sudo mv argocd-linux-amd64 /usr/local/bin/argocd
+
+            - name: Login to ArgoCD
+              run: |
+                  export ARGOCD_OPTS="--plaintext --insecure"
+                  export ARGOCD_SERVER=localhost:8080
+                  argocd login localhost:8080 --username ${{ secrets.ARGOCD_USERNAME }} --password ${{ secrets.ARGOCD_PASSWORD }}
+
+            - name: Sync ArgoCD Application
+              run: |
+                  argocd app set compasscoach-backend --repo git@github.com:compasscoach/backend-node.git --revision processed-files-${{ vars.BUILD }} --path k8s
+                  argocd app sync compasscoach-backend

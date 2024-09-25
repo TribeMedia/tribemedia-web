@@ -1,0 +1,23 @@
+query ChatSessionById($id: UUID!) {
+  chatSessionCollection(filter: {id: {eq: $id}}) {
+    edges {
+      node {
+        ...ChatSession
+      }
+    }
+  }
+}
+
+
+fragment ChatSession on ChatSession {
+  id
+  userId
+  title
+  notes
+    data
+    createdAt
+    startedAt
+    endedAt
+    lastActiveAt
+}
+

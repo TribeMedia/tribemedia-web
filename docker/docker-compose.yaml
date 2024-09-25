@@ -1,0 +1,59 @@
+# Usage
+#   Start:          docker compose up
+#   With helpers:   docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
+#   Stop:           docker compose down
+#   Destroy:        docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v --remove-orphans
+
+name: supabase
+version: "3.8"
+
+services:
+  # Comment out everything below this point if you are using an external Postgres database
+  db:
+    restart: 'always'
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=zitadel
+    networks:
+      - 'prometheus'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "zitadel", "-U", "postgres"]
+      interval: '10s'
+      timeout: '30s'
+      retries: 5
+      start_period: '20s'
+    volumes:
+      - ./volumes/db/data:/var/lib/postgresql/data:Z
+
+  zitadel:
+    restart: 'always'
+    networks:
+      - 'prometheus'
+    image: 'ghcr.io/zitadel/zitadel:latest'
+    command: 'start-from-init --masterkey "MasterkeyNeedsToHave32Characters" --tlsMode disabled'
+    environment:
+      - 'ZITADEL_DATABASE_POSTGRES_HOST=db'
+      - 'ZITADEL_DATABASE_POSTGRES_PORT=5432'
+      - 'ZITADEL_DATABASE_POSTGRES_DATABASE=zitadel'
+      - 'ZITADEL_DATABASE_POSTGRES_USER_USERNAME=zitadel'
+      - 'ZITADEL_DATABASE_POSTGRES_USER_PASSWORD=zitadel'
+      - 'ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE=disable'
+      - 'ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME=postgres'
+      - 'ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD=postgres'
+      - 'ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE=disable'
+      - 'ZITADEL_EXTERNALSECURE=false'
+      -  'ZITADEL_PORT=9090'
+    depends_on:
+      db:
+        condition: 'service_healthy'
+    ports:
+      - '9090:9090'
+
+volumes:
+  db-config:
+
+networks:
+  prometheus:
+    driver: bridge
